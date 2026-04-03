@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="theme-color" content="#0e0f14"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="description" content="GradeVault — FUTO GPA & CGPA Calculator on the 5-point scale"/>
+<title>GradeVault — FUTO GPA Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0e0f14;--surface:#16181f;--card:#1c1f2a;
+  --border:#2a2d3a;--border2:#353848;
+  --gold:#d4a843;--gold2:#f0c96a;
+  --green2:#3da86c;--red2:#e74c3c;
+  --text:#e8eaf0;--text2:#9da0b0;--text3:#6b6f80;
+  --A:#3da86c;--B:#2980b9;--C:#d4a843;--D:#c0784a;--E:#c0392b;--F:#6b2d2d;
+  --shadow:0 4px 24px rgba(0,0,0,.4);--r:14px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+
+/* ── AUTH ─────────────────────────────────────────────────── */
+#auth-screen{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:20px;background:radial-gradient(ellipse at 30% 20%,#1a1230 0%,#0e0f14 60%)}
+.auth-box{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:36px 24px 28px;box-shadow:0 0 60px rgba(212,168,67,.07),var(--shadow)}
+.auth-logo{font-family:'Playfair Display',serif;font-size:26px;color:var(--gold);margin-bottom:3px}
+.auth-tagline{color:var(--text3);font-size:11px;margin-bottom:28px}
+.auth-tabs{display:flex;background:var(--card);border-radius:10px;padding:4px;margin-bottom:22px;gap:4px}
+.auth-tab{flex:1;padding:9px;text-align:center;font-size:13px;font-weight:600;border-radius:7px;cursor:pointer;color:var(--text3);transition:all .2s;border:none;background:none;font-family:inherit}
+.auth-tab.active{background:var(--gold);color:#0e0f14}
+.auth-field{margin-bottom:14px}
+.auth-field label{display:block;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+.auth-field input{width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:14px;font-family:inherit;font-size:16px;outline:none;transition:border-color .2s;-webkit-appearance:none}
+.auth-field input:focus{border-color:var(--gold)}
+.auth-error{font-size:13px;color:var(--red2);background:rgba(192,57,43,.1);border:1px solid rgba(192,57,43,.25);border-radius:8px;padding:10px 12px;margin-bottom:14px;display:none}
+.btn-full{width:100%;background:var(--gold);color:#0e0f14;border:none;padding:15px;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit;transition:background .2s;margin-top:4px}
+.btn-full:hover{background:var(--gold2)}
+.btn-full:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── APP ──────────────────────────────────────────────────── */
+#app{display:none;min-height:100dvh;flex-direction:column}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;display:flex;align-items:center;gap:10px;height:52px;flex-shrink:0;position:sticky;top:0;z-index:100}
+.header-logo{font-family:'Playfair Display',serif;font-size:18px;color:var(--gold)}
+header .sp{flex:1}
+.header-user{display:flex;align-items:center;gap:7px;background:var(--card);border:1px solid var(--border);border-radius:24px;padding:5px 12px 5px 6px;cursor:pointer;transition:border-color .2s}
+.header-user:hover{border-color:var(--gold)}
+.hdr-av{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--gold),#a07820);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:#0e0f14;flex-shrink:0}
+.hdr-name{font-size:13px;font-weight:500;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hdr-out{font-size:11px;color:var(--text3)}
+
+/* Stats bar */
+.stats-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.stats-bar::-webkit-scrollbar{display:none}
+.stat-chip{display:flex;flex-direction:column;gap:1px;flex-shrink:0;padding-right:14px}
+.stat-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;white-space:nowrap}
+.stat-value{font-family:'DM Mono',monospace;font-size:17px;font-weight:500;color:var(--gold)}
+.stat-value.good{color:var(--green2)}.stat-value.bad{color:var(--red2)}
+.stat-divider{width:1px;height:32px;background:var(--border);flex-shrink:0;margin-right:14px}
+.stat-chip.sm .stat-value{font-size:13px;color:var(--text2)}
+.cgpa-badge{flex-shrink:0;margin-left:10px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:6px 14px;display:flex;flex-direction:column;align-items:center}
+.cgpa-badge .lbl{font-size:9px;color:var(--text3);letter-spacing:.7px;text-transform:uppercase;margin-bottom:1px}
+.cgpa-badge .val{font-family:'Playfair Display',serif;font-size:20px;color:var(--gold);line-height:1}
+.cgpa-badge .cls{font-size:9px;color:var(--text2);margin-top:1px;white-space:nowrap}
+
+/* Year / sem tabs */
+.year-tabs{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.year-tabs::-webkit-scrollbar{display:none}
+.year-btn{padding:10px 14px;font-size:12px;font-weight:600;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;background:none;border:none;border-bottom:2px solid transparent;font-family:inherit}
+.year-btn:hover{color:var(--text)}.year-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
+.sem-tabs{background:var(--card);border-bottom:1px solid var(--border);padding:0 16px;display:flex}
+.sem-tab{flex:1;padding:9px 4px;text-align:center;font-size:12px;font-weight:500;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;transition:all .2s;background:none;border:none;border-bottom:2px solid transparent;font-family:inherit}
+.sem-tab:hover{color:var(--text)}.sem-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+.sem-tab .gpa-tag{display:block;font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);margin-top:1px}
+.sem-tab.active .gpa-tag{color:var(--gold)}
+
+/* Content */
+.content{flex:1;padding:16px;max-width:860px;width:100%;margin:0 auto}
+.sem-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.sem-title{font-family:'Playfair Display',serif;font-size:18px;color:var(--text)}
+.sem-detail{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:2px}
+.btn-add{background:var(--gold);color:#0e0f14;border:none;padding:9px 14px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;transition:all .2s;display:flex;align-items:center;gap:5px;flex-shrink:0}
+.btn-add:hover{background:var(--gold2)}
+.btn-add svg{width:13px;height:13px}
+
+/* Table */
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;min-width:440px}
+thead th{background:var(--card);padding:10px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);font-weight:600;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border);transition:background .15s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:rgba(255,255,255,.02)}
+td{padding:8px 12px;font-size:14px}
+.cell-input{background:transparent;border:1px solid transparent;color:var(--text);font-family:inherit;font-size:14px;padding:5px 8px;border-radius:7px;width:100%;transition:all .15s;outline:none;-webkit-appearance:none}
+.cell-input:hover{border-color:var(--border2);background:var(--card)}
+.cell-input:focus{border-color:var(--gold);background:var(--card)}
+.cell-input.uu{width:52px;text-align:center;font-family:'DM Mono',monospace}
+.grade-sel{appearance:none;-webkit-appearance:none;background:var(--card);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;font-weight:500;padding:5px 8px;border-radius:7px;cursor:pointer;outline:none;transition:border-color .15s;min-width:60px;text-align:center}
+.grade-sel:focus{border-color:var(--gold)}
+.grade-A{color:var(--A)}.grade-B{color:var(--B)}.grade-C{color:var(--C)}.grade-D{color:var(--D)}.grade-E{color:var(--E)}.grade-F{color:var(--F)}
+.gp-cell{font-family:'DM Mono',monospace;color:var(--text2);font-size:12px}
+.btn-del{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:4px 8px;border-radius:6px;transition:all .2s}
+.btn-del:hover{color:var(--red2);background:rgba(192,57,43,.1)}
+.tot-row td{background:var(--card);border-top:1px solid var(--border2);font-weight:600;font-size:12px;color:var(--text2);font-family:'DM Mono',monospace}
+.tot-row .tot-gpa{color:var(--gold);font-size:14px}
+.empty{padding:48px 16px;text-align:center}
+.empty .icon{font-size:34px;margin-bottom:10px;opacity:.3}
+.empty p{color:var(--text3);font-size:13px}
+
+/* Classification */
+.class-first{color:var(--green2)}.class-second-upper{color:#5dade2}.class-second-lower{color:var(--gold)}.class-third{color:#e59866}.class-pass{color:var(--text3)}
+
+/* Offline banner */
+.offline-bar{background:rgba(192,57,43,.12);border-bottom:1px solid rgba(192,57,43,.2);padding:6px 16px;font-size:12px;color:var(--red2);text-align:center;display:none}
+.offline-bar.show{display:block}
+
+/* Save pill */
+.save-pill{position:fixed;bottom:16px;right:16px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:7px 14px;font-size:12px;color:var(--text3);opacity:0;transition:opacity .3s;pointer-events:none;z-index:200}
+.save-pill.saving{opacity:1;color:var(--gold)}.save-pill.saved{opacity:1;color:var(--green2)}.save-pill.err{opacity:1;color:var(--red2)}
+
+/* Toast */
+.toast{position:fixed;top:64px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:9px 18px;font-size:13px;color:var(--text2);opacity:0;transition:opacity .3s;z-index:300;white-space:nowrap;pointer-events:none}
+.toast.show{opacity:1}.toast.terr{color:var(--red2);border-color:rgba(192,57,43,.3)}
+
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- ═══ AUTH ════════════════════════════════════════════════ -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">GradeVault</div>
+    <div class="auth-tagline">FUTO GPA &amp; CGPA Calculator · 5-Point Scale</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login"    onclick="showTab('login')">Login</button>
+      <button class="auth-tab"        id="tab-register" onclick="showTab('register')">Register</button>
+    </div>
+    <div class="auth-error" id="auth-err"></div>
+    <div class="auth-field">
+      <label>Username</label>
+      <input type="text" id="a-user" placeholder="Enter username" autocomplete="username" maxlength="32" inputmode="text"/>
+    </div>
+    <div class="auth-field">
+      <label>Password</label>
+      <input type="password" id="a-pass" placeholder="Enter password" autocomplete="current-password"/>
+    </div>
+    <button class="btn-full" id="auth-btn" onclick="submitAuth()">Login</button>
+  </div>
+</div>
+
+<!-- ═══ APP ═════════════════════════════════════════════════ -->
+<div id="app">
+  <header>
+    <div class="header-logo">GradeVault</div>
+    <div class="sp"></div>
+    <div class="header-user" onclick="doLogout()">
+      <div class="hdr-av" id="hdr-av"></div>
+      <span class="hdr-name" id="hdr-name"></span>
+      <span class="hdr-out">↩ logout</span>
+    </div>
+  </header>
+
+  <!-- Offline indicator -->
+  <div class="offline-bar" id="offline-bar">
+    ⚠ No connection — working from local cache. Changes will sync when you're back online.
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-chip">
+      <div class="stat-label">Sem GPA</div>
+      <div class="stat-value" id="st-cur">—</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div id="mini-chips" style="display:flex"></div>
+    <div class="cgpa-badge">
+      <div class="lbl">CGPA</div>
+      <div class="val" id="cgpa-val">—</div>
+      <div class="cls" id="cgpa-cls"></div>
+    </div>
+  </div>
+
+  <div class="year-tabs" id="year-tabs"></div>
+  <div class="sem-tabs"  id="sem-tabs"></div>
+
+  <div class="content">
+    <div class="sem-header">
+      <div>
+        <div class="sem-title"  id="sem-title">—</div>
+        <div class="sem-detail" id="sem-detail"></div>
+      </div>
+      <button class="btn-add" onclick="addCourse()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>Add Course
+      </button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:110px">Code</th>
+            <th>Title</th>
+            <th style="width:68px;text-align:center">Units</th>
+            <th style="width:74px;text-align:center">Grade</th>
+            <th style="width:66px;text-align:center">GP×CU</th>
+            <th style="width:36px"></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+        <tfoot  id="tfoot"></tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="save-pill" id="save-pill"></div>
+<div class="toast"     id="toast"></div>
+
+<script>
+// ══ Constants ══════════════════════════════════════════════════
+const GP = {A:5,B:4,C:3,D:2,E:1,F:0};
+const YEARS = [
+  {label:'Year 1',sems:['y1s1','y1s2']},
+  {label:'Year 2',sems:['y2s1','y2s2']},
+  {label:'Year 3',sems:['y3s1','y3s2']},
+  {label:'Year 4',sems:['y4s1','y4s2']},
+  {label:'Year 5',sems:['y5s1','y5s2']},
+];
+const SEMS = YEARS.flatMap(y=>y.sems);
+const SEM_NAME = {
+  y1s1:'Year 1 · Semester 1',y1s2:'Year 1 · Semester 2',
+  y2s1:'Year 2 · Semester 1',y2s2:'Year 2 · Semester 2',
+  y3s1:'Year 3 · Semester 1',y3s2:'Year 3 · Semester 2',
+  y4s1:'Year 4 · Semester 1',y4s2:'Year 4 · Semester 2',
+  y5s1:'Year 5 · Semester 1',y5s2:'Year 5 · Semester 2',
+};
+
+// LocalStorage keys
+const K = {
+  tok:  'gv_tok',
+  me:   'gv_me',
+  cache:'gv_cache',    // { semesters, updated_at, hash }
+};
+
+// ══ State ═══════════════════════════════════════════════════════
+let token   = ls(K.tok);
+let me      = ls(K.me);
+let curYear = 0;
+let curSem  = 'y1s1';
+let data    = null;           // { semesters }
+let lastHash= '';             // last successfully saved hash
+let saveTimer = null;
+let isOnline  = navigator.onLine;
+
+// ══ Helpers ══════════════════════════════════════════════════════
+function ls(k)          { try{return localStorage.getItem(k)||''}catch{return ''} }
+function lsSet(k,v)     { try{localStorage.setItem(k,v)}catch{} }
+function lsDel(k)       { try{localStorage.removeItem(k)}catch{} }
+
+function normSems(s={}) {
+  const o={};
+  SEMS.forEach(k=>{o[k]=Array.isArray(s?.[k])?s[k]:[]});
+  return o;
+}
+
+/** Lightweight 16-char hash of semester JSON for dedup */
+async function semHash(sems) {
+  try {
+    const j = JSON.stringify(sems, Object.keys(sems).sort());
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(j));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,16);
+  } catch {
+    // Fallback: simple string length + sum (non-crypto env)
+    const j = JSON.stringify(sems);
+    return (j.length + j.split('').reduce((a,c)=>a+c.charCodeAt(0),0)).toString(16).slice(0,16);
+  }
+}
+
+// ══ Network ══════════════════════════════════════════════════════
+const H = () => ({'Content-Type':'application/json','X-Auth-Token':token||''});
+
+async function apiFetch(method, path, body, retries=1) {
+  for (let attempt=0; attempt<=retries; attempt++) {
+    try {
+      const opts = {method, headers:H()};
+      if (body) opts.body = JSON.stringify(body);
+      const r = await fetch(path, opts);
+      const j = await r.json().catch(()=>({}));
+
+      // Token expired → force re-login
+      if (r.status===401) { hardLogout(); return {ok:false,...j}; }
+      return {ok:r.ok, status:r.status, ...j};
+    } catch(e) {
+      if (attempt < retries) {
+        // Neon cold-start can take ~2s. Give it a moment.
+        await new Promise(res=>setTimeout(res, 1500));
+      } else {
+        return {ok:false, error:'Network error'};
+      }
+    }
+  }
+}
+
+// ══ Online / offline detection ════════════════════════════════
+function setOnline(v) {
+  isOnline = v;
+  document.getElementById('offline-bar').classList.toggle('show', !v);
+  if (v && data) scheduleSave(); // retry pending save when back online
+}
+window.addEventListener('online',  ()=>setOnline(true));
+window.addEventListener('offline', ()=>setOnline(false));
+
+// ══ Toast ══════════════════════════════════════════════════════
+function toast(msg, err=false) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='toast show'+(err?' terr':'');
+  clearTimeout(el._t); el._t=setTimeout(()=>el.className='toast',2800);
+}
+
+// ══ Auth ══════════════════════════════════════════════════════
+let authMode='login';
+
+function showTab(m) {
+  authMode=m;
+  document.getElementById('tab-login').classList.toggle('active',m==='login');
+  document.getElementById('tab-register').classList.toggle('active',m==='register');
+  document.getElementById('auth-btn').textContent=m==='login'?'Login':'Create Account';
+  document.getElementById('a-pass').autocomplete=m==='login'?'current-password':'new-password';
+  setErr('');
+}
+function setErr(msg){
+  const el=document.getElementById('auth-err');
+  el.textContent=msg; el.style.display=msg?'block':'none';
+}
+
+async function submitAuth() {
+  const username=document.getElementById('a-user').value.trim();
+  const password=document.getElementById('a-pass').value;
+  const btn=document.getElementById('auth-btn');
+  if(!username||!password){setErr('Please fill in all fields.');return;}
+  btn.disabled=true; btn.textContent=authMode==='login'?'Logging in…':'Creating account…'; setErr('');
+  const res=await apiFetch('POST',`/api/${authMode}`,{username,password},2);
+  btn.disabled=false; showTab(authMode);
+  if(!res.ok){setErr(res.error||'Something went wrong.');return;}
+  token=res.token; me=res.username;
+  lsSet(K.tok,token); lsSet(K.me,me);
+  await launch(false);
+}
+
+// ══ App launch ══════════════════════════════════════════════
+async function launch(useCacheFirst=true) {
+  if(!token){showAuth();return;}
+
+  // ── Strategy: show cached data immediately, sync in background ──
+  const cached = tryLoadCache();
+  if (cached && useCacheFirst) {
+    // Paint the UI instantly from localStorage — zero network wait
+    me = ls(K.me);
+    data = {semesters: normSems(cached.semesters)};
+    lastHash = cached.hash || '';
+    mountApp();
+    // Then quietly sync from server
+    syncFromServer(cached.updated_at);
+  } else {
+    // First login or no cache — must fetch from server
+    const res = await apiFetch('GET','/api/data',null,2);
+    if(!res.ok){
+      if(cached){
+        // Server unreachable but we have a cache — use it offline
+        data={semesters:normSems(cached.semesters)};
+        mountApp();
+        setOnline(false);
+      } else {
+        hardLogout();
+      }
+      return;
+    }
+    me = res.username; lsSet(K.me,me);
+    data = {semesters: normSems(res.semesters)};
+    await saveCache(res.semesters, res.updated_at);
+    mountApp();
+  }
+}
+
+/** Fetch from server; if server data is newer, update UI */
+async function syncFromServer(localUpdatedAt) {
+  const res = await apiFetch('GET','/api/data',null,1);
+  if(!res.ok) { setOnline(false); return; }
+  setOnline(true);
+
+  const serverTs = res.updated_at ? new Date(res.updated_at).getTime() : 0;
+  const localTs  = localUpdatedAt ? new Date(localUpdatedAt).getTime() : 0;
+
+  if (serverTs > localTs) {
+    // Server has newer data (edited on another device)
+    data = {semesters: normSems(res.semesters)};
+    await saveCache(res.semesters, res.updated_at);
+    renderTable(); updateStats();
+    toast('Synced from server');
+  }
+  // If local is newer, scheduleSave() would have already been called
+}
+
+function mountApp() {
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  document.getElementById('hdr-name').textContent=me;
+  document.getElementById('hdr-av').textContent=me.charAt(0).toUpperCase();
+  buildYearTabs(); buildMiniChips();
+  switchYear(0,true);
+}
+
+function showAuth(){
+  document.getElementById('app').style.display='none';
+  document.getElementById('auth-screen').style.display='flex';
+}
+
+function hardLogout(){
+  token=''; me=''; data=null; lastHash='';
+  lsDel(K.tok); lsDel(K.me); lsDel(K.cache);
+  showAuth();
+}
+
+async function doLogout(){
+  apiFetch('POST','/api/logout',{});   // fire-and-forget
+  hardLogout();
+}
+
+// ══ Local cache ════════════════════════════════════════════════
+function tryLoadCache() {
+  try {
+    const raw = localStorage.getItem(K.cache);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+async function saveCache(sems, updated_at) {
+  const h = await semHash(sems);
+  lsSet(K.cache, JSON.stringify({semesters:sems, updated_at, hash:h}));
+  return h;
+}
+
+// ══ Tabs ══════════════════════════════════════════════════════
+function buildYearTabs(){
+  document.getElementById('year-tabs').innerHTML=
+    YEARS.map((y,i)=>`<button class="year-btn" id="yb${i}" onclick="switchYear(${i})">${y.label}</button>`).join('');
+}
+function buildMiniChips(){
+  document.getElementById('mini-chips').innerHTML=
+    SEMS.map(s=>`<div class="stat-chip sm" style="padding-right:12px">
+      <div class="stat-label">${s.toUpperCase()}</div>
+      <div class="stat-value" id="mini-${s}">—</div>
+    </div>`).join('');
+}
+function switchYear(idx,first=false){
+  curYear=idx;
+  document.querySelectorAll('.year-btn').forEach((b,i)=>b.classList.toggle('active',i===idx));
+  const sems=YEARS[idx].sems;
+  document.getElementById('sem-tabs').innerHTML=sems.map(s=>
+    `<button class="sem-tab" id="st-${s}" onclick="switchSem('${s}')">
+      Sem ${s.slice(-1)}
+      <span class="gpa-tag" id="stg-${s}">—</span>
+    </button>`).join('');
+  switchSem(first?'y1s1':(sems.includes(curSem)?curSem:sems[0]));
+}
+function switchSem(sem){
+  const yi=YEARS.findIndex(y=>y.sems.includes(sem));
+  if(yi!==-1&&yi!==curYear){switchYear(yi);return;}
+  curSem=sem;
+  document.querySelectorAll('.sem-tab').forEach(t=>t.classList.toggle('active',t.id==='st-'+sem));
+  document.getElementById('sem-title').textContent=SEM_NAME[sem];
+  renderTable(); updateStats();
+}
+
+// ══ Table ══════════════════════════════════════════════════════
+function renderTable(){
+  const courses=data.semesters[curSem]||[];
+  const tbody=document.getElementById('tbody');
+  const tfoot=document.getElementById('tfoot');
+  if(!courses.length){
+    tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="icon">📚</div><p>No courses yet — tap <strong>Add Course</strong> to begin.</p></div></td></tr>`;
+    tfoot.innerHTML=''; document.getElementById('sem-detail').textContent=''; return;
+  }
+  tbody.innerHTML=courses.map((c,i)=>{
+    const gp=GP[c.grade]??null,u=parseFloat(c.units)||0;
+    const ct=(gp!==null&&u>0&&c.grade!=='')?gp*u:'—';
+    const gc=c.grade?`grade-${c.grade}`:'';
+    return `<tr>
+      <td><input class="cell-input" value="${x(c.code)}" placeholder="MTH 101" oninput="upd(${i},'code',this.value)"/></td>
+      <td><input class="cell-input" value="${x(c.title)}" placeholder="Course title" oninput="upd(${i},'title',this.value)"/></td>
+      <td style="text-align:center"><input class="cell-input uu" type="number" min="1" max="6" value="${c.units||''}" placeholder="2" oninput="upd(${i},'units',this.value)"/></td>
+      <td style="text-align:center">
+        <select class="grade-sel ${gc}" onchange="upd(${i},'grade',this.value)">
+          <option value="">—</option>
+          ${['A','B','C','D','E','F'].map(g=>`<option value="${g}"${c.grade===g?' selected':''}class="grade-${g}">${g}</option>`).join('')}
+        </select>
+      </td>
+      <td class="gp-cell" style="text-align:center">${ct==='—'?'—':ct}</td>
+      <td><button class="btn-del" onclick="delCourse(${i})">✕</button></td>
+    </tr>`;
+  }).join('');
+  renderTotals(courses);
+}
+
+function renderTotals(courses){
+  const {tgp,tnu,gpa}=calcSem(courses);
+  document.getElementById('tfoot').innerHTML=`
+    <tr class="tot-row"><td colspan="2" style="text-align:right">Totals</td><td style="text-align:center">${tnu||'—'}</td><td></td><td style="text-align:center">${tgp||'—'}</td><td></td></tr>
+    <tr class="tot-row"><td colspan="4" style="text-align:right;color:var(--text3)">Semester GPA</td><td class="tot-gpa" style="text-align:center">${fmt(gpa)}</td><td></td></tr>`;
+  document.getElementById('sem-detail').textContent=gpa!==null?`TGP ${tgp} ÷ TNU ${tnu} = ${fmt(gpa)}`:'';
+}
+
+function addCourse(){
+  data.semesters[curSem].push({code:'',title:'',units:'',grade:''});
+  renderTable(); updateStats(); scheduleSave();
+  setTimeout(()=>{const i=document.querySelectorAll('#tbody tr:last-child input');if(i.length)i[0].focus();},40);
+}
+function delCourse(i){data.semesters[curSem].splice(i,1);renderTable();updateStats();scheduleSave();}
+function upd(i,field,val){
+  data.semesters[curSem][i][field]=val;
+  partialUpdate(data.semesters[curSem]);updateStats();scheduleSave();
+}
+function partialUpdate(courses){
+  if(!courses.length){document.getElementById('tfoot').innerHTML='';return;}
+  document.getElementById('tbody').querySelectorAll('tr').forEach((row,i)=>{
+    if(!courses[i])return;
+    const c=courses[i],gp=GP[c.grade]??null,u=parseFloat(c.units)||0;
+    const ct=(gp!==null&&u>0&&c.grade!=='')?gp*u:'—';
+    const gc=row.querySelectorAll('td')[4];if(gc)gc.textContent=ct==='—'?'—':ct;
+    const sel=row.querySelector('.grade-sel');if(sel)sel.className='grade-sel'+(c.grade?' grade-'+c.grade:'');
+  });
+  renderTotals(courses);
+}
+
+// ══ Stats ══════════════════════════════════════════════════════
+function updateStats(){
+  const sems=data.semesters;
+  SEMS.forEach(s=>{
+    const {gpa}=calcSem(sems[s]||[]);
+    const m=document.getElementById('mini-'+s);
+    if(m){m.textContent=fmt(gpa);m.className='stat-value '+gc(gpa);}
+    const g=document.getElementById('stg-'+s);if(g)g.textContent=fmt(gpa);
+  });
+  const {gpa:cur}=calcSem(sems[curSem]||[]);
+  const el=document.getElementById('st-cur');
+  el.textContent=fmt(cur);el.className='stat-value '+gc(cur);
+  const cgpa=calcCGPA(sems);
+  document.getElementById('cgpa-val').textContent=fmt(cgpa);
+  const cls=document.getElementById('cgpa-cls');
+  cls.textContent=classLabel(cgpa);cls.className='cls '+classBadge(cgpa);
+}
+
+// ══ Save with dedup ════════════════════════════════════════════
+function scheduleSave(){
+  const pill=document.getElementById('save-pill');
+  pill.textContent='Saving…';pill.className='save-pill saving';
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(doSave, 1200);   // 1.2s debounce
+}
+
+async function doSave(){
+  if(!isOnline){
+    // Save to localStorage only; retry when back online
+    await saveCache(data.semesters, null);
+    showPill('Saved locally','saved');
+    return;
+  }
+
+  const h = await semHash(data.semesters);
+
+  if(h===lastHash){
+    // Nothing changed — skip both the network call and the DB write
+    showPill('No changes','saved');
+    return;
+  }
+
+  const res = await apiFetch('PUT','/api/data',{semesters:data.semesters,hash:h},1);
+  if(res.ok){
+    if(!res.skipped){
+      // Server confirmed write; update cache with server timestamp
+      await saveCache(data.semesters, res.updated_at);
+      lastHash = res.hash || h;
+    }
+    showPill('Saved ✓','saved');
+  } else {
+    // Save failed — keep in localStorage as a safety net
+    await saveCache(data.semesters, null);
+    showPill('Sync failed — saved locally','err');
+  }
+}
+
+function showPill(msg,cls){
+  const pill=document.getElementById('save-pill');
+  pill.textContent=msg;pill.className='save-pill '+cls;
+  setTimeout(()=>pill.className='save-pill',2000);
+}
+
+// ══ Calculations ══════════════════════════════════════════════
+function calcSem(courses){
+  let tgp=0,tnu=0;
+  courses.forEach(c=>{const u=parseFloat(c.units)||0,gp=GP[c.grade]??null;if(u>0&&gp!==null&&c.grade!==''){tgp+=gp*u;tnu+=u;}});
+  return tnu===0?{tgp:0,tnu:0,gpa:null}:{tgp,tnu,gpa:tgp/tnu};
+}
+function calcCGPA(sems){let t=0,n=0;SEMS.forEach(s=>{const r=calcSem(sems[s]||[]);t+=r.tgp;n+=r.tnu;});return n===0?null:t/n;}
+function classLabel(c){if(c===null)return '';if(c>=4.5)return 'First Class';if(c>=3.5)return '2nd Class Upper';if(c>=2.5)return '2nd Class Lower';if(c>=1.5)return 'Third Class';return 'Pass';}
+function classBadge(c){if(c===null)return '';if(c>=4.5)return 'class-first';if(c>=3.5)return 'class-second-upper';if(c>=2.5)return 'class-second-lower';if(c>=1.5)return 'class-third';return 'class-pass';}
+function gc(g){return g===null?'':g>=3.5?'good':g<2.0?'bad':'';}
+function fmt(n){return n===null?'—':n.toFixed(2);}
+function x(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+
+// ══ Keyboard ══════════════════════════════════════════════════
+document.getElementById('a-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('a-pass').focus();});
+document.getElementById('a-pass').addEventListener('keydown',e=>{if(e.key==='Enter')submitAuth();});
+
+// ══ Boot ══════════════════════════════════════════════════════
+if(token) launch(true); else showAuth();
+</script>
+</body>
+</html>
