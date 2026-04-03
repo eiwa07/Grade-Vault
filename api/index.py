@@ -80,7 +80,7 @@ def empty(): return {s: [] for s in SEMS}
 def clean(raw): return {s: (raw[s] if isinstance(raw.get(s), list) else []) for s in SEMS}
 
 # ── Error handlers ────────────────────────────────────────────
-@app.errorhandler(400); 
+@app.errorhandler(400) 
 def e400(e): return jsonify(error=str(e.description)), 400
 @app.errorhandler(401)
 def e401(e): return jsonify(error=str(e.description)), 401
