@@ -1,387 +1,179 @@
-"""
-GradeVault — Vercel Serverless API (Production-optimised)
-
-Optimisations for free-tier safety with 25+ daily users:
-  * Neon PgBouncer pooled URL       -> fewer connection wake events
-  * Module-level connection reuse   -> one connection per warm Lambda
-  * Login/register return semesters -> kills the extra /api/data round-trip
-  * Probabilistic session cleanup   -> not on every cold start (10% chance)
-  * In-memory brute-force limiter   -> stops rapid-fire login DB hammering
-  * Lazy one-time migrations        -> schema check only on first cold start
-
-Environment variables (Vercel dashboard -> Settings -> Environment Variables):
-  DATABASE_URL    - Neon POOLED connection string (port 6543, include ?pgbouncer=true)
-  SESSION_SECRET  - Any random 32+ char string
-  ALLOWED_ORIGIN  - Your Vercel URL e.g. https://gradevault.vercel.app
-"""
-
-import os
-import json
-import random
-import secrets
-import hashlib
-import time
-from datetime import datetime, timedelta, timezone
+import os, json, hmac, hashlib, secrets, time
+from datetime import datetime, timezone
 from collections import defaultdict
 
-import psycopg2
-import psycopg2.extras
+import psycopg2, psycopg2.extras
+import jwt
 from flask import Flask, request, jsonify, abort
 from flask_cors import CORS
 
-# ── App ───────────────────────────────────────────────────────
 app = Flask(__name__)
-CORS(app, supports_credentials=True,
-     origins=os.environ.get("ALLOWED_ORIGIN", "*"))
+CORS(app, origins=os.environ.get("ALLOWED_ORIGIN", "*"))
 
-DATABASE_URL   = os.environ["DATABASE_URL"]
-SESSION_SECRET = os.environ.get("SESSION_SECRET", secrets.token_hex(16))
-TOKEN_EXPIRY_HOURS = 72
+SECRET  = os.environ.get("SESSION_SECRET", secrets.token_hex(16))
+DB_URL  = os.environ.get("DATABASE_URL", "")
+TTL     = 72 * 3600
+ALG     = "HS256"
+SEMS    = ["y1s1","y1s2","y2s1","y2s2","y3s1","y3s2","y4s1","y4s2","y5s1","y5s2"]
 
-SEMS = ["y1s1","y1s2","y2s1","y2s2","y3s1","y3s2","y4s1","y4s2","y5s1","y5s2"]
+# ── Rate limiter ──────────────────────────────────────────────
+_rl: dict = defaultdict(list)
+def allow(key, limit, window=60):
+    now = time.monotonic()
+    _rl[key] = [t for t in _rl[key] if now - t < window]
+    if len(_rl[key]) >= limit: return False
+    _rl[key].append(now); return True
 
-# ── Module-level connection (reused across warm Lambda calls) ─
-_conn     = None
+def get_ip():
+    return (request.headers.get("X-Forwarded-For","").split(",")[0].strip()
+            or request.remote_addr or "?")
+
+# ── DB ────────────────────────────────────────────────────────
+def db():
+    return psycopg2.connect(DB_URL,
+        cursor_factory=psycopg2.extras.RealDictCursor,
+        connect_timeout=8)
+
 _migrated = False
-
-
-def get_conn():
-    global _conn
-    try:
-        if _conn is None or _conn.closed:
-            raise Exception("reconnect")
-        _conn.isolation_level          # cheap liveness probe
-    except Exception:
-        _conn = psycopg2.connect(
-            DATABASE_URL,
-            cursor_factory=psycopg2.extras.RealDictCursor,
-            connect_timeout=10,
-            options="-c statement_timeout=8000",
-        )
-        _conn.autocommit = False
-    return _conn
-
-
-def run_migrations_once():
-    """Only executed on first cold start per Lambda process."""
+def ensure_schema():
     global _migrated
-    if _migrated:
-        return
-    try:
-        conn = get_conn()
-        with conn.cursor() as cur:
+    if _migrated: return
+    with db() as c:
+        with c.cursor() as cur:
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS users (
-                    id            SERIAL PRIMARY KEY,
-                    username      TEXT UNIQUE NOT NULL,
+                    id SERIAL PRIMARY KEY,
+                    username TEXT UNIQUE NOT NULL,
                     password_hash TEXT NOT NULL,
-                    created_at    TIMESTAMPTZ DEFAULT NOW()
-                )
-            """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS sessions (
-                    token      TEXT PRIMARY KEY,
-                    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                    expires_at TIMESTAMPTZ NOT NULL
-                )
-            """)
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                )""")
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS gpa_data (
-                    user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-                    semesters  JSONB NOT NULL DEFAULT '{}',
+                    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                    semesters JSONB NOT NULL DEFAULT '{}',
                     updated_at TIMESTAMPTZ DEFAULT NOW()
-                )
-            """)
+                )""")
             cur.execute("""
-                CREATE INDEX IF NOT EXISTS idx_sessions_token
-                ON sessions(token)
-            """)
-        conn.commit()
-        _migrated = True
-    except Exception as e:
-        try: _conn.rollback()
-        except: pass
-        print(f"[WARN] Migration: {e}")
+                CREATE INDEX IF NOT EXISTS idx_users_lower
+                ON users(LOWER(username))""")
+        c.commit()
+    _migrated = True
 
+try: ensure_schema()
+except Exception as e: print(f"[schema] {e}")
 
-def maybe_cleanup_sessions():
-    """Delete expired sessions ~10% of requests to spread DB load."""
-    if random.random() > 0.10:
-        return
+# ── Auth ──────────────────────────────────────────────────────
+def pw(password): return hmac.new(SECRET.encode(), password.encode(), hashlib.sha256).hexdigest()
+def mint(uid, username): return jwt.encode({"sub":uid,"usr":username,"exp":int(time.time())+TTL}, SECRET, ALG)
+def decode(token):
     try:
-        conn = get_conn()
-        with conn.cursor() as cur:
-            cur.execute("DELETE FROM sessions WHERE expires_at < NOW()")
-        conn.commit()
-    except Exception:
-        try: _conn.rollback()
-        except: pass
+        p = jwt.decode(token, SECRET, algorithms=[ALG], options={"require":["sub","usr","exp"]})
+        return {"id": p["sub"], "username": p["usr"]}
+    except: return None
 
+def auth():
+    u = decode(request.headers.get("X-Auth-Token",""))
+    if not u: abort(401, "Session expired")
+    return u
 
-run_migrations_once()
-
-# ── In-memory rate limiter (brute-force protection) ──────────
-_fails: dict = defaultdict(lambda: {"n": 0, "until": 0})
-RATE_MAX    = 10
-RATE_WINDOW = 300   # 5 min block after 10 failures
-
-
-def check_rate(ip: str):
-    e = _fails[ip]
-    if e["until"] > time.time():
-        abort(429, description="Too many attempts. Try again in 5 minutes.")
-
-
-def fail(ip: str):
-    e = _fails[ip]
-    e["n"] += 1
-    if e["n"] >= RATE_MAX:
-        e["until"] = time.time() + RATE_WINDOW
-        e["n"] = 0
-
-
-def clear_fail(ip: str):
-    _fails.pop(ip, None)
-
-
-# ── Auth helpers ──────────────────────────────────────────────
-def hash_pw(password: str) -> str:
-    return hashlib.sha256((SESSION_SECRET + password).encode()).hexdigest()
-
-
-def make_token() -> str:
-    return secrets.token_urlsafe(40)
-
-
-def get_user_from_token(token: str | None):
-    if not token:
-        return None
-    try:
-        conn = get_conn()
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT u.id, u.username
-                FROM   sessions s
-                JOIN   users    u ON s.user_id = u.id
-                WHERE  s.token = %s AND s.expires_at > NOW()
-            """, (token,))
-            row = cur.fetchone()
-        return dict(row) if row else None
-    except Exception:
-        try: _conn.rollback()
-        except: pass
-        return None
-
-
-def require_auth():
-    token = request.headers.get("X-Auth-Token") or ""
-    user  = get_user_from_token(token)
-    if not user:
-        abort(401, description="Unauthorized")
-    return user
-
-
-def create_session(user_id: int) -> str:
-    token   = make_token()
-    expires = datetime.now(timezone.utc) + timedelta(hours=TOKEN_EXPIRY_HOURS)
-    conn    = get_conn()
-    with conn.cursor() as cur:
-        cur.execute(
-            "INSERT INTO sessions (token, user_id, expires_at) VALUES (%s, %s, %s)",
-            (token, user_id, expires),
-        )
-    conn.commit()
-    return token
-
-
-def load_semesters(user_id: int) -> dict:
-    base = {s: [] for s in SEMS}
-    try:
-        conn = get_conn()
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT semesters FROM gpa_data WHERE user_id = %s", (user_id,))
-            row = cur.fetchone()
-        if row:
-            stored = row["semesters"]
-            if isinstance(stored, str):
-                stored = json.loads(stored)
-            for s in SEMS:
-                if s in stored and isinstance(stored[s], list):
-                    base[s] = stored[s]
-    except Exception:
-        try: _conn.rollback()
-        except: pass
-    return base
-
+def empty(): return {s: [] for s in SEMS}
+def clean(raw): return {s: (raw[s] if isinstance(raw.get(s), list) else []) for s in SEMS}
 
 # ── Error handlers ────────────────────────────────────────────
-@app.errorhandler(400)
-def bad_request(e): return jsonify(error=str(e.description)), 400
-
+@app.errorhandler(400) 
+def e400(e): return jsonify(error=str(e.description)), 400
 @app.errorhandler(401)
-def unauthorized(e): return jsonify(error=str(e.description)), 401
-
-@app.errorhandler(404)
-def not_found(e): return jsonify(error="Not found"), 404
-
+def e401(e): return jsonify(error=str(e.description)), 401
 @app.errorhandler(409)
-def conflict(e): return jsonify(error=str(e.description)), 409
-
+def e409(e): return jsonify(error=str(e.description)), 409
 @app.errorhandler(429)
-def too_many(e): return jsonify(error=str(e.description)), 429
+def e429(e): return jsonify(error="Too many requests"), 429
 
-@app.errorhandler(500)
-def server_error(e): return jsonify(error="Internal server error"), 500
-
-
-# ── Register ─────────────────────────────────────────────────
+# ── Register ──────────────────────────────────────────────────
 @app.route("/api/register", methods=["POST"])
 def register():
-    body     = request.get_json(silent=True) or {}
-    username = (body.get("username") or "").strip()
-    password = body.get("password") or ""
-    ip       = request.headers.get("X-Forwarded-For", request.remote_addr or "")
-
-    check_rate(ip)
-
-    if not username or len(username) < 2:
-        return jsonify(error="Username must be at least 2 characters"), 400
-    if len(username) > 32:
-        return jsonify(error="Username too long (max 32 chars)"), 400
-    if not password or len(password) < 4:
-        return jsonify(error="Password must be at least 4 characters"), 400
-
-    conn = get_conn()
+    if not allow(f"auth:{get_ip()}", 10): abort(429)
+    b = request.get_json(silent=True) or {}
+    u = (b.get("username") or "").strip()
+    p = b.get("password") or ""
+    if len(u) < 2:  return jsonify(error="Username too short"), 400
+    if len(u) > 32: return jsonify(error="Username too long"), 400
+    if len(p) < 4:  return jsonify(error="Password too short (min 4)"), 400
     try:
-        with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO users (username, password_hash) VALUES (%s, %s) RETURNING id",
-                (username, hash_pw(password)),
-            )
-            user_id = cur.fetchone()["id"]
-            empty   = {s: [] for s in SEMS}
-            cur.execute(
-                "INSERT INTO gpa_data (user_id, semesters) VALUES (%s, %s)",
-                (user_id, json.dumps(empty)),
-            )
-        conn.commit()
-    except psycopg2.errors.UniqueViolation:
-        conn.rollback()
-        record_fail(ip)
-        return jsonify(error="Username already taken"), 409
-    except Exception:
-        conn.rollback()
-        return jsonify(error="Database error"), 500
-
-    clear_fail(ip)
-    token     = create_session(user_id)
-    semesters = {s: [] for s in SEMS}
-    # Semesters bundled here — client skips the /api/data call entirely
-    return jsonify(token=token, username=username, semesters=semesters), 201
-
+        with db() as c:
+            with c.cursor() as cur:
+                cur.execute("INSERT INTO users(username,password_hash) VALUES(%s,%s) RETURNING id", (u, pw(p)))
+                uid = cur.fetchone()["id"]
+                cur.execute("INSERT INTO gpa_data(user_id,semesters) VALUES(%s,%s)", (uid, json.dumps(empty())))
+            c.commit()
+    except psycopg2.errors.UniqueViolation: return jsonify(error="Username taken"), 409
+    except Exception as e: return jsonify(error=f"DB error: {e}"), 500
+    return jsonify(token=mint(uid, u), username=u), 201
 
 # ── Login ─────────────────────────────────────────────────────
 @app.route("/api/login", methods=["POST"])
 def login():
-    body     = request.get_json(silent=True) or {}
-    username = (body.get("username") or "").strip()
-    password = body.get("password") or ""
-    ip       = request.headers.get("X-Forwarded-For", request.remote_addr or "")
-
-    check_rate(ip)
-
-    if not username or not password:
-        return jsonify(error="Username and password required"), 400
-
-    conn = get_conn()
+    if not allow(f"auth:{get_ip()}", 10): abort(429)
+    b = request.get_json(silent=True) or {}
+    u = (b.get("username") or "").strip()
+    p = b.get("password") or ""
+    if not u or not p: return jsonify(error="Username and password required"), 400
     try:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT id, username FROM users WHERE username = %s AND password_hash = %s",
-                (username, hash_pw(password)),
-            )
-            row = cur.fetchone()
-    except Exception:
-        conn.rollback()
-        return jsonify(error="Database error"), 500
-
-    if not row:
-        fail(ip)
-        return jsonify(error="Invalid username or password"), 401
-
-    clear_fail(ip)
-    maybe_cleanup_sessions()
-
-    user_id   = row["id"]
-    token     = create_session(user_id)
-    semesters = load_semesters(user_id)
-    # Semesters bundled here — client skips the /api/data call entirely
-    return jsonify(token=token, username=row["username"], semesters=semesters), 200
-
+        with db() as c:
+            with c.cursor() as cur:
+                cur.execute("SELECT id,username FROM users WHERE LOWER(username)=LOWER(%s) AND password_hash=%s", (u, pw(p)))
+                row = cur.fetchone()
+    except Exception as e: return jsonify(error=f"DB error: {e}"), 500
+    if not row: return jsonify(error="Invalid username or password"), 401
+    return jsonify(token=mint(row["id"], row["username"]), username=row["username"]), 200
 
 # ── Logout ────────────────────────────────────────────────────
 @app.route("/api/logout", methods=["POST"])
 def logout():
-    token = request.headers.get("X-Auth-Token") or ""
-    if token:
-        try:
-            conn = get_conn()
-            with conn.cursor() as cur:
-                cur.execute("DELETE FROM sessions WHERE token = %s", (token,))
-            conn.commit()
-        except Exception:
-            try: _conn.rollback()
-            except: pass
-    return jsonify(ok=True)
+    return jsonify(ok=True)  # JWT — client drops the token
 
-
-# ── GET /api/data  (return-visit background refresh only) ─────
+# ── GET data ──────────────────────────────────────────────────
 @app.route("/api/data", methods=["GET"])
 def get_data():
-    user = require_auth()
-    return jsonify(username=user["username"], semesters=load_semesters(user["id"]))
+    user = auth()
+    try:
+        with db() as c:
+            with c.cursor() as cur:
+                cur.execute("SELECT semesters, updated_at FROM gpa_data WHERE user_id=%s", (user["id"],))
+                row = cur.fetchone()
+    except Exception as e: return jsonify(error=f"DB error: {e}"), 500
+    sems = empty(); ts = None
+    if row:
+        raw = row["semesters"]
+        if isinstance(raw, str): raw = json.loads(raw)
+        sems = clean(raw)
+        ts   = row["updated_at"].isoformat() if row["updated_at"] else None
+    return jsonify(username=user["username"], semesters=sems, updated_at=ts)
 
-
-# ── PUT /api/data  (auto-save) ────────────────────────────────
+# ── PUT data ──────────────────────────────────────────────────
 @app.route("/api/data", methods=["PUT"])
 def save_data():
-    user      = require_auth()
-    body      = request.get_json(silent=True) or {}
-    semesters = body.get("semesters")
-
-    if not isinstance(semesters, dict):
-        return jsonify(error="Invalid payload"), 400
-
-    clean = {
-        s: (semesters[s] if isinstance(semesters.get(s), list) else [])
-        for s in SEMS
-    }
-
-    conn = get_conn()
+    user = auth()
+    b = request.get_json(silent=True) or {}
+    sems = b.get("semesters")
+    if not isinstance(sems, dict): return jsonify(error="Bad payload"), 400
+    c_data = json.dumps(clean(sems), separators=(",",":"), sort_keys=True)
+    h      = hashlib.sha256(c_data.encode()).hexdigest()[:16]
+    if b.get("hash") == h: return jsonify(ok=True, skipped=True, hash=h)
     try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO gpa_data (user_id, semesters, updated_at)
-                VALUES (%s, %s, NOW())
-                ON CONFLICT (user_id) DO UPDATE
-                    SET semesters  = EXCLUDED.semesters,
-                        updated_at = EXCLUDED.updated_at
-            """, (user["id"], json.dumps(clean)))
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        return jsonify(error="Database error"), 500
-
-    return jsonify(ok=True)
-
+        with db() as c:
+            with c.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO gpa_data(user_id,semesters,updated_at) VALUES(%s,%s,NOW())
+                    ON CONFLICT(user_id) DO UPDATE
+                        SET semesters=EXCLUDED.semesters, updated_at=EXCLUDED.updated_at
+                    RETURNING updated_at""", (user["id"], c_data))
+                ts = cur.fetchone()["updated_at"].isoformat()
+            c.commit()
+    except Exception as e: return jsonify(error=f"DB error: {e}"), 500
+    return jsonify(ok=True, hash=h, updated_at=ts)
 
 # ── Health ────────────────────────────────────────────────────
 @app.route("/api/health")
 def health():
     return jsonify(status="ok", ts=datetime.now(timezone.utc).isoformat())
-
-
-# ── Local dev ─────────────────────────────────────────────────
-if __name__ == "__main__":
-    app.run(debug=True, port=5000)
