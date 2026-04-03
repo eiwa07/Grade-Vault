@@ -190,6 +190,9 @@ def maybe_cleanup_sessions():
         except:
             pass
 
+# Run migrations on startup (for serverless, this runs per cold start)
+run_migrations_once()
+
 # ── Routes ───────────────────────────────────────────────────
 @app.route("/api/register", methods=["POST"])
 def register():
@@ -289,7 +292,8 @@ def logout():
 @app.route("/api/data", methods=["GET"])
 def get_data():
     user = require_auth()
-    return jsonify(username=user["username"], semesters=load_semesters(user["id"]))
+    semesters = load_semesters(user["id"])
+    return jsonify(username=user["username"], semesters=semesters)
 
 @app.route("/api/data", methods=["PUT"])
 def save_data():
@@ -322,6 +326,9 @@ def save_data():
 @app.route("/api/health")
 def health():
     return jsonify(status="ok", ts=datetime.now(timezone.utc).isoformat())
+
+# This is critical for Vercel
+handler = app
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
