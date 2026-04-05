@@ -125,47 +125,60 @@ td{padding:8px 12px;font-size:14px}
 .save-pill.saving{opacity:1;color:var(--gold)}
 .save-pill.saved{opacity:1;color:var(--green2)}
 
-/* Floating Add Button — fixed bottom-centre, always visible in app */
+/* Floating Add — fixed bottom-centre, always visible in app */
 .fab-wrap{
-  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
-  display:none;align-items:center;gap:10px;z-index:200;
+  position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
+  display:none;flex-direction:column;align-items:center;gap:6px;z-index:200;
 }
-/* Counter: −  [n]  + */
-.fab-count{
-  background:var(--card);border:1px solid var(--border2);
-  border-radius:12px;display:flex;align-items:center;
-  overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.35);
-  height:44px;
+.fab-slots-label{
+  font-size:10px;color:var(--text3);letter-spacing:.6px;
+  text-transform:uppercase;font-weight:500;
 }
-.fab-count button{
+/* The whole unit: dark pill + gold circle fused together */
+.fab-unit{
+  display:flex;align-items:center;gap:0;
+  filter:drop-shadow(0 4px 18px rgba(212,168,67,.35)) drop-shadow(0 2px 8px rgba(0,0,0,.5));
+}
+/* Dark pill: − and number only */
+.fab-pill{
+  background:#1c1f2a;
+  border:1px solid var(--border2);
+  border-right:none;
+  border-radius:100px 0 0 100px;
+  display:flex;align-items:center;
+  height:52px;padding:0 4px 0 6px;
+  gap:0;
+}
+.fab-pill button{
   background:none;border:none;color:var(--text2);
-  font-size:20px;width:36px;height:44px;cursor:pointer;
+  font-size:22px;width:34px;height:52px;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
-  transition:color .15s,background .15s;font-family:inherit;
-  flex-shrink:0;
+  transition:color .15s;font-family:inherit;flex-shrink:0;
+  border-radius:8px;
 }
-.fab-count button:hover{color:var(--gold);background:rgba(212,168,67,.08)}
-.fab-count button:active{background:rgba(212,168,67,.15)}
-.fab-count input{
-  width:38px;height:44px;background:none;border:none;
+.fab-pill button:hover{color:var(--gold)}
+.fab-pill button:active{color:var(--gold2)}
+.fab-pill input{
+  width:32px;height:52px;background:none;border:none;
   color:var(--text);font-family:'DM Mono',monospace;
-  font-size:15px;font-weight:600;text-align:center;
+  font-size:17px;font-weight:700;text-align:center;
   outline:none;-webkit-appearance:none;appearance:none;
 }
-.fab-count input::-webkit-inner-spin-button,
-.fab-count input::-webkit-outer-spin-button{-webkit-appearance:none}
-/* The circular + button */
-.fab{
-  width:52px;height:52px;border-radius:50%;
+.fab-pill input::-webkit-inner-spin-button,
+.fab-pill input::-webkit-outer-spin-button{-webkit-appearance:none}
+/* Gold circle: "Add" */
+.fab-btn{
+  width:62px;height:62px;border-radius:50%;
   background:var(--gold);border:none;color:#0e0f14;
-  font-size:28px;line-height:1;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 4px 20px rgba(212,168,67,.5),0 2px 6px rgba(0,0,0,.3);
-  transition:background .2s,transform .15s,box-shadow .15s;
-  flex-shrink:0;
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background .2s,transform .15s;
+  flex-shrink:0;letter-spacing:.2px;
+  /* slight overlap so pill and circle look merged */
+  margin-left:-2px;
 }
-.fab:hover{background:var(--gold2);transform:scale(1.07);box-shadow:0 6px 24px rgba(212,168,67,.6),0 2px 8px rgba(0,0,0,.3)}
-.fab:active{transform:scale(.95)}
+.fab-btn:hover{background:var(--gold2);transform:scale(1.05)}
+.fab-btn:active{transform:scale(.95)}
 
 /* Force uppercase on course code column */
 .code-input{text-transform:uppercase}
@@ -263,19 +276,18 @@ td{padding:8px 12px;font-size:14px}
   </div>
 </div>
 
-<!-- Floating Add Button — always visible while in app -->
+<!-- Floating Add — always visible while in app -->
 <div class="fab-wrap" id="fab-wrap">
-  <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
-    <div style="font-size:10px;color:var(--text3);letter-spacing:.5px;white-space:nowrap">slots</div>
-    <div class="fab-count">
+  <div class="fab-slots-label">slots</div>
+  <div class="fab-unit">
+    <div class="fab-pill">
       <button onclick="fabDec()" aria-label="Fewer slots">−</button>
-      <input  id="fab-n" type="number" value="1" min="1" max="20"
-              oninput="this.value=Math.min(20,Math.max(1,parseInt(this.value)||1))"
-              aria-label="Number of course slots"/>
-      <button onclick="fabInc()" aria-label="More slots">+</button>
+      <input id="fab-n" type="number" value="1" min="1" max="20"
+             oninput="this.value=Math.min(20,Math.max(1,parseInt(this.value)||1))"
+             aria-label="Number of course slots"/>
     </div>
+    <button class="fab-btn" onclick="addCourses()" aria-label="Add courses">Add</button>
   </div>
-  <button class="fab" onclick="addCourses()" aria-label="Add course slots">+</button>
 </div>
 
 <div class="save-pill" id="save-pill">Saving…</div>
