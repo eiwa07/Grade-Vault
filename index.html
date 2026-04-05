@@ -76,8 +76,8 @@ header .spacer{flex:1}
 .sem-tab .gpa-tag{display:block;font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);margin-top:1px}
 .sem-tab.active .gpa-tag{color:var(--gold)}
 
-/* Content — bottom padding keeps last row above the FAB */
-.content{flex:1;padding:16px;padding-bottom:96px;max-width:860px;width:100%;margin:0 auto}
+/* Content */
+.content{flex:1;padding:16px;max-width:860px;width:100%;margin:0 auto}
 .sem-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
 .sem-title{font-family:'Playfair Display',serif;font-size:18px;color:var(--text)}
 .sem-detail{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:2px}
@@ -114,78 +114,21 @@ td{padding:8px 12px;font-size:14px}
 .class-first{color:var(--green2)}.class-second-upper{color:#5dade2}
 .class-second-lower{color:var(--gold)}.class-third{color:#e59866}.class-pass{color:var(--text3)}
 
-/* Save pill — sits top-right so it never overlaps the FAB */
-.save-pill{
-  position:fixed;top:60px;right:12px;
-  background:var(--card);border:1px solid var(--border);
-  border-radius:20px;padding:6px 12px;font-size:11px;color:var(--text3);
-  opacity:0;transition:opacity .3s;pointer-events:none;z-index:150;
-  box-shadow:0 2px 10px rgba(0,0,0,.3);
-}
-.save-pill.saving{opacity:1;color:var(--gold)}
-.save-pill.saved{opacity:1;color:var(--green2)}
+/* Save pill */
+.save-pill{position:fixed;bottom:16px;right:16px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:6px 12px;font-size:11px;color:var(--text3);opacity:0;transition:opacity .3s;pointer-events:none;z-index:200;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+.save-pill.saving{opacity:1;color:var(--gold)}.save-pill.saved{opacity:1;color:var(--green2)}
 
-/* Floating Add — fixed bottom-centre, always visible in app */
-.fab-wrap{
-  position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
-  display:none;flex-direction:column;align-items:center;gap:6px;z-index:200;
-}
-.fab-slots-label{
-  font-size:10px;color:var(--text3);letter-spacing:.6px;
-  text-transform:uppercase;font-weight:500;
-}
-/* The whole unit: dark pill + gold circle fused together */
-.fab-unit{
-  display:flex;align-items:center;gap:0;
-  filter:drop-shadow(0 4px 18px rgba(212,168,67,.35)) drop-shadow(0 2px 8px rgba(0,0,0,.5));
-}
-/* Dark pill: − and number only */
-.fab-pill{
-  background:#1c1f2a;
-  border:1px solid var(--border2);
-  border-right:none;
-  border-radius:100px 0 0 100px;
-  display:flex;align-items:center;
-  height:52px;padding:0 4px 0 6px;
-  gap:0;
-}
-.fab-pill button{
-  background:none;border:none;color:var(--text2);
-  font-size:22px;width:34px;height:52px;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-  transition:color .15s;font-family:inherit;flex-shrink:0;
-  border-radius:8px;
-}
-.fab-pill button:hover{color:var(--gold)}
-.fab-pill button:active{color:var(--gold2)}
-.fab-pill input{
-  width:32px;height:52px;background:none;border:none;
-  color:var(--text);font-family:'DM Mono',monospace;
-  font-size:17px;font-weight:700;text-align:center;
-  outline:none;-webkit-appearance:none;appearance:none;
-}
-.fab-pill input::-webkit-inner-spin-button,
-.fab-pill input::-webkit-outer-spin-button{-webkit-appearance:none}
-/* Gold circle: "Add" */
-.fab-btn{
-  width:62px;height:62px;border-radius:50%;
-  background:var(--gold);border:none;color:#0e0f14;
-  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;
-  cursor:pointer;display:flex;align-items:center;justify-content:center;
-  transition:background .2s,transform .15s;
-  flex-shrink:0;letter-spacing:.2px;
-  /* slight overlap so pill and circle look merged */
-  margin-left:-2px;
-}
-.fab-btn:hover{background:var(--gold2);transform:scale(1.05)}
-.fab-btn:active{transform:scale(.95)}
+/* Inline slot counter beside Add Course button */
+.add-row{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.slot-counter{display:flex;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;height:36px}
+.slot-counter button{background:none;border:none;color:var(--text3);font-size:16px;width:30px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .15s,background .15s;font-family:inherit;flex-shrink:0}
+.slot-counter button:hover{color:var(--gold);background:rgba(212,168,67,.08)}
+.slot-counter input{width:32px;height:36px;background:none;border:none;color:var(--text);font-family:'DM Mono',monospace;font-size:14px;font-weight:600;text-align:center;outline:none;-webkit-appearance:none;appearance:none}
+.slot-counter input::-webkit-inner-spin-button,.slot-counter input::-webkit-outer-spin-button{-webkit-appearance:none}
 
 /* Force uppercase on course code column */
 .code-input{text-transform:uppercase}
 .code-input::placeholder{text-transform:none}
-
-/* Sync badge */
-.sync-badge{font-size:10px;color:var(--text3);margin-left:6px;opacity:.7}
 
 /* Toast */
 .toast{position:fixed;top:64px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:9px 18px;font-size:13px;color:var(--text2);opacity:0;transition:opacity .3s;z-index:300;white-space:nowrap;pointer-events:none}
@@ -251,11 +194,20 @@ td{padding:8px 12px;font-size:14px}
         <div class="sem-title"  id="sem-title">—</div>
         <div class="sem-detail" id="sem-detail"></div>
       </div>
-      <button class="btn-add" onclick="addCourse()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-        </svg>Add Course
-      </button>
+      <div class="add-row">
+        <div class="slot-counter">
+          <button onclick="slotDec()" aria-label="Fewer slots">−</button>
+          <input id="slot-n" type="number" value="1" min="1" max="20"
+                 oninput="this.value=Math.min(20,Math.max(1,parseInt(this.value)||1))"
+                 aria-label="Number of slots"/>
+          <button onclick="slotInc()" aria-label="More slots">+</button>
+        </div>
+        <button class="btn-add" onclick="addCourses()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>Add Course
+        </button>
+      </div>
     </div>
     <div class="table-wrap">
       <table>
@@ -273,20 +225,6 @@ td{padding:8px 12px;font-size:14px}
         <tfoot  id="tfoot"></tfoot>
       </table>
     </div>
-  </div>
-</div>
-
-<!-- Floating Add — always visible while in app -->
-<div class="fab-wrap" id="fab-wrap">
-  <div class="fab-slots-label">slots</div>
-  <div class="fab-unit">
-    <div class="fab-pill">
-      <button onclick="fabDec()" aria-label="Fewer slots">−</button>
-      <input id="fab-n" type="number" value="1" min="1" max="20"
-             oninput="this.value=Math.min(20,Math.max(1,parseInt(this.value)||1))"
-             aria-label="Number of course slots"/>
-    </div>
-    <button class="fab-btn" onclick="addCourses()" aria-label="Add courses">Add</button>
   </div>
 </div>
 
@@ -454,7 +392,6 @@ function boot(username, sems) {
 function mountApp(username, sems) {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
-  document.getElementById('fab-wrap').style.display = 'flex';
   document.getElementById('hdr-name').textContent = username;
   document.getElementById('hdr-av').textContent   = username.charAt(0).toUpperCase();
   if (!data) data = {semesters: sems};
@@ -501,7 +438,6 @@ async function doLogout() {
   localStorage.removeItem(LS_TOKEN);
   localStorage.removeItem(LS_ME);
   clearCache();
-  document.getElementById('fab-wrap').style.display = 'none';
   showAuth();
 }
 
@@ -584,14 +520,13 @@ function renderTotals(courses) {
   document.getElementById('sem-detail').textContent=
     gpa!==null?`TGP ${tgp} ÷ TNU ${tnu} = ${fmt(gpa)}`:'';
 }
-function fabInc(){ const el=document.getElementById('fab-n'); el.value=Math.min(20,parseInt(el.value||1)+1); }
-function fabDec(){ const el=document.getElementById('fab-n'); el.value=Math.max(1, parseInt(el.value||1)-1); }
+function slotInc(){ const el=document.getElementById('slot-n'); el.value=Math.min(20,parseInt(el.value||1)+1); }
+function slotDec(){ const el=document.getElementById('slot-n'); el.value=Math.max(1, parseInt(el.value||1)-1); }
 
 function addCourses() {
-  const n = Math.min(20, Math.max(1, parseInt(document.getElementById('fab-n').value)||1));
+  const n = Math.min(20, Math.max(1, parseInt(document.getElementById('slot-n').value)||1));
   for (let i=0; i<n; i++) data.semesters[curSem].push({code:'',title:'',units:'',grade:''});
   renderTable(); updateStats(); markDirty(); scheduleSave();
-  // Focus first empty code cell of newly added rows
   setTimeout(()=>{
     const rows = document.querySelectorAll('#tbody tr');
     const targetRow = rows[rows.length - n];
@@ -599,7 +534,6 @@ function addCourses() {
   }, 40);
 }
 
-// Keep old name working (called from header button)
 function addCourse() { addCourses(); }
 function delCourse(i) {
   data.semesters[curSem].splice(i,1);
