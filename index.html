@@ -77,15 +77,68 @@ header .spacer{flex:1}
 .sem-tab.active .gpa-tag{color:var(--gold)}
 
 /* Content */
-.content{flex:1;padding:16px;max-width:860px;width:100%;margin:0 auto}
-.sem-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.sem-title{font-family:'Playfair Display',serif;font-size:18px;color:var(--text)}
-.sem-detail{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:2px}
-.btn-add{background:var(--gold);color:#0e0f14;border:none;padding:9px 14px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;transition:all .2s;display:flex;align-items:center;gap:5px;flex-shrink:0}
-.btn-add:hover{background:var(--gold2)}
-.btn-add svg{width:13px;height:13px}
+.content{flex:1;padding:20px 16px 28px;max-width:860px;width:100%;margin:0 auto}
 
-/* Table */
+/* ── Semester header ─────────────────────────────── */
+.sem-header{margin-bottom:20px}
+
+/* Title row */
+.sem-title-row{margin-bottom:14px}
+.sem-title{
+  font-family:'Playfair Display',serif;
+  font-size:26px;font-weight:700;
+  color:var(--text);line-height:1.15;
+  letter-spacing:-.3px;
+}
+.sem-detail{
+  font-size:11px;color:var(--text3);
+  font-family:'DM Mono',monospace;margin-top:4px;
+}
+
+/* Actions row — slot stepper on left, Add Course on right */
+.sem-actions{
+  display:flex;align-items:center;
+  justify-content:space-between;gap:10px;
+}
+
+/* Slot stepper: ghost look, secondary feel */
+.slot-wrap{display:flex;align-items:center;gap:6px}
+.slot-lbl{font-size:11px;color:var(--text3);letter-spacing:.3px;white-space:nowrap}
+.slot-counter{
+  display:flex;align-items:center;
+  border:1px solid var(--border2);border-radius:8px;
+  overflow:hidden;height:36px;background:transparent;
+}
+.slot-counter button{
+  background:none;border:none;color:var(--text3);
+  font-size:18px;width:34px;height:36px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:color .15s,background .15s;font-family:inherit;flex-shrink:0;
+}
+.slot-counter button:hover{color:var(--gold);background:rgba(212,168,67,.07)}
+.slot-counter button:active{color:var(--gold2)}
+.slot-counter input{
+  width:34px;height:36px;background:none;border:none;
+  color:var(--text);font-family:'DM Mono',monospace;
+  font-size:15px;font-weight:600;text-align:center;
+  outline:none;-webkit-appearance:none;appearance:none;
+}
+.slot-counter input::-webkit-inner-spin-button,
+.slot-counter input::-webkit-outer-spin-button{-webkit-appearance:none}
+
+/* Add Course — primary CTA, taller and more breathable */
+.btn-add{
+  background:var(--gold);color:#0e0f14;border:none;
+  padding:0 22px;height:44px;border-radius:12px;
+  font-weight:700;font-size:14px;cursor:pointer;
+  font-family:inherit;
+  transition:background .2s,transform .12s,box-shadow .2s;
+  white-space:nowrap;flex-shrink:0;
+  box-shadow:0 2px 12px rgba(212,168,67,.25);
+  letter-spacing:.2px;
+}
+.btn-add:hover{background:var(--gold2);box-shadow:0 4px 18px rgba(212,168,67,.4)}
+.btn-add:active{transform:scale(.97)}
 .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;overflow-x:auto;-webkit-overflow-scrolling:touch}
 table{width:100%;border-collapse:collapse;min-width:440px}
 thead th{background:var(--card);padding:10px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);font-weight:600;border-bottom:1px solid var(--border);white-space:nowrap}
@@ -118,13 +171,6 @@ td{padding:8px 12px;font-size:14px}
 .save-pill{position:fixed;bottom:16px;right:16px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:6px 12px;font-size:11px;color:var(--text3);opacity:0;transition:opacity .3s;pointer-events:none;z-index:200;box-shadow:0 2px 10px rgba(0,0,0,.3)}
 .save-pill.saving{opacity:1;color:var(--gold)}.save-pill.saved{opacity:1;color:var(--green2)}
 
-/* Inline slot counter beside Add Course button */
-.add-row{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.slot-counter{display:flex;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;height:36px}
-.slot-counter button{background:none;border:none;color:var(--text3);font-size:16px;width:30px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .15s,background .15s;font-family:inherit;flex-shrink:0}
-.slot-counter button:hover{color:var(--gold);background:rgba(212,168,67,.08)}
-.slot-counter input{width:32px;height:36px;background:none;border:none;color:var(--text);font-family:'DM Mono',monospace;font-size:14px;font-weight:600;text-align:center;outline:none;-webkit-appearance:none;appearance:none}
-.slot-counter input::-webkit-inner-spin-button,.slot-counter input::-webkit-outer-spin-button{-webkit-appearance:none}
 
 /* Force uppercase on course code column */
 .code-input{text-transform:uppercase}
@@ -190,23 +236,22 @@ td{padding:8px 12px;font-size:14px}
   <div class="sem-tabs"  id="sem-tabs"></div>
   <div class="content">
     <div class="sem-header">
-      <div>
-        <div class="sem-title"  id="sem-title">—</div>
+      <div class="sem-title-row">
+        <div class="sem-title" id="sem-title">—</div>
         <div class="sem-detail" id="sem-detail"></div>
       </div>
-      <div class="add-row">
-        <div class="slot-counter">
-          <button onclick="slotDec()" aria-label="Fewer slots">−</button>
-          <input id="slot-n" type="number" value="1" min="1" max="20"
-                 oninput="this.value=Math.min(20,Math.max(1,parseInt(this.value)||1))"
-                 aria-label="Number of slots"/>
-          <button onclick="slotInc()" aria-label="More slots">+</button>
+      <div class="sem-actions">
+        <div class="slot-wrap">
+          <span class="slot-lbl">Slots</span>
+          <div class="slot-counter">
+            <button onclick="slotDec()" aria-label="Fewer slots">−</button>
+            <input id="slot-n" type="number" value="1" min="1" max="20"
+                   oninput="this.value=Math.min(20,Math.max(1,parseInt(this.value)||1))"
+                   aria-label="Number of slots"/>
+            <button onclick="slotInc()" aria-label="More slots">+</button>
+          </div>
         </div>
-        <button class="btn-add" onclick="addCourses()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>Add Course
-        </button>
+        <button class="btn-add" onclick="addCourses()">Add Course</button>
       </div>
     </div>
     <div class="table-wrap">
